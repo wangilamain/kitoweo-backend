@@ -67,3 +67,4 @@ def edit_profile(request, username):
         'prof_form': prof_form
     }
     return render(request, 'edit.component.html', params)
+    

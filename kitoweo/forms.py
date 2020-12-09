@@ -29,3 +29,19 @@ class UpdateProfileForm(forms.ModelForm):
     class Meta:
         model = Profile
         fields = ('name', 'location', 'image', 'order')
+  class Catalogue(models.Model):
+        quantity= models.CharField(max_length=250)
+        location = models.CharField(max_length=250)
+        orders = models.IntegerField(default=0)
+        image = CloudinaryField('Profile pic', null=True, blank=True)
+        admin = models.ForeignKey(User, on_delete=models.CASCADE)
+
+        def __str__(self):
+            return f'{self.name} catalogue'
+
+        def save_neighborhood(self):
+            self.save()
+
+        def delete_neighborhood(self):
+            self.delete()
+
