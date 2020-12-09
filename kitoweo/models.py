@@ -17,10 +17,10 @@ class Profile(models.Model):
 
 
 class Post(models.Model):
-    projectname = models.CharField(max_length=155)
-    website = models.CharField(max_length=100)
+    quantity = models.CharField(max_length=155)
+    location = models.CharField(max_length=100)
     description = models.CharField(max_length=255)
-    picture = CloudinaryField('image')
+    image = CloudinaryField('size/age', null=True, blank=True)
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="posts")
     posted = models.DateTimeField(auto_now_add=True)
 
