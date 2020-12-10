@@ -129,3 +129,4 @@ REST_FRAMEWORK = {
         'knox.auth.TokenAuthentication',
     ]
 }
+EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
