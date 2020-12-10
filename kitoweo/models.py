@@ -1,3 +1,5 @@
+from __future__ import unicode_literals
+
 from django.db import models
 from django.contrib.auth.models import User
 from django.contrib.auth.models import AbstractBaseUser, BaseUserManager
@@ -7,7 +9,7 @@ from django_rest_passwordreset.signals import reset_password_token_created
 from django.core.mail import send_mail
 import cloudinary
 from cloudinary.models import CloudinaryField
-
+from tinymce.models import HTMLField
 # Create your models here.
 
 
@@ -23,7 +25,7 @@ def password_reset_token_created(sender, instance, reset_password_token, *args, 
         # message:
         email_plaintext_message,
         # from:
-        "anybody@gmail.com",
+        "@gmail.com",
         # to:
         [reset_password_token.user.email]
     )
@@ -82,7 +84,7 @@ class Profile (models.Model):
     user = models.ForeignKey(User,on_delete=models.CASCADE)
     email = models.CharField(max_length=50)
     status = models.BooleanField()
-    image = CloudinaryField('Profile pic', default = '')
+    image = CloudinaryField('Profile pic', default = 'profile.jpg')
     
     def __str__(self):
         return f'{self.user.first_name} Profile'
@@ -91,4 +93,25 @@ class Profile (models.Model):
         self.save()
         
     def delete_profile(self):
+        self.delete()
+        
+    @classmethod
+    def update_profile(cls, id, value):
+        cls.objects.filter(id=id).update(name=value)
+        
+class Site(models.Model):
+    name = models.CharField(max_length=250)
+    location = models.CharField(max_length=250)
+    email = models.CharField(max_length=50)
+    image = CloudinaryField('Profile pic', null=True, blank=True)
+    admin = models.ForeignKey(User,on_delete=models.CASCADE)
+    description = models.TextField()
+    
+    def __str__(self):
+        return f'{self.name} site'
+    
+    def save_site(self):
+        self.save()
+        
+    def delete_site(self):
         self.delete()
