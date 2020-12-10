@@ -1,17 +1,13 @@
-from rest_framework import generics, permissions,status
+from rest_framework import generics, permissions, status
 from rest_framework.response import Response
 from knox.models import AuthToken
 from .serializers import UserSerializer, RegisterSerializer, ChangePasswordSerializer
-from rest_framework.permissions import IsAuthenticated
 from django.contrib.auth import login
-from django.contrib.auth.models import User
 from rest_framework.authtoken.serializers import AuthTokenSerializer
 from knox.views import LoginView as KnoxLoginView
-from rest_framework import viewsets,permissions
-
+from rest_framework.permissions import IsAuthenticated
+from django.contrib.auth.models import User
 # Register API
-
-
 class RegisterAPI(generics.GenericAPIView):
     serializer_class = RegisterSerializer
 
@@ -20,11 +16,9 @@ class RegisterAPI(generics.GenericAPIView):
         serializer.is_valid(raise_exception=True)
         user = serializer.save()
         return Response({
-            "user": UserSerializer(user, context=self.get_serializer_context()).data,
-            "token": AuthToken.objects.create(user)[1]
+        "user": UserSerializer(user, context=self.get_serializer_context()).data,
+        "token": AuthToken.objects.create(user)[1]
         })
-
-
 class LoginAPI(KnoxLoginView):
     permission_classes = (permissions.AllowAny,)
 
@@ -34,8 +28,6 @@ class LoginAPI(KnoxLoginView):
         user = serializer.validated_data['user']
         login(request, user)
         return super(LoginAPI, self).post(request, format=None)
-
-
 class ChangePasswordView(generics.UpdateAPIView):
     """
     An endpoint for changing password.
@@ -68,4 +60,4 @@ class ChangePasswordView(generics.UpdateAPIView):
 
             return Response(response)
 
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)     
