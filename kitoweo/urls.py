@@ -13,9 +13,7 @@ userDetail = UserViewSet.as_view({
     'get': 'retrieve'
 })
 router = DefaultRouter()
-router.register(r'Neighborhood', NeighbourhoodViewSet)
 router.register(r'Profile', ProfileViewSet)
-router.register(r'Post', PostViewSet)
 router.register(r'User', UserViewSet)
 urlpatterns = [
     path('', views.home, name='home'),
@@ -26,8 +24,5 @@ urlpatterns = [
          name='change-password'),
     path('api/password_reset/',
          include('django_rest_passwordreset.urls', namespace='password_reset')),
-    # path('api/token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
-    # path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
-    path('users/<int:pk>/', userDetail, name='user-detail'),
-    path('api/v1/', include(router.urls)),
+
 ]

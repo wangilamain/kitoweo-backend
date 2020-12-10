@@ -1,70 +1,71 @@
-def welcome(request):
-from django.http  import HttpResponse
-from django.shortcuts import render, redirect
-from django.http  import HttpResponseRedirect
-from django.contrib.auth.forms import UserCreationForm
-from django.contrib.auth.decorators import login_required
-from django.contrib.auth import login, authenticate, logout
-from .forms import RegisterForm, PostForm,UpdateUserForm,UpdateProfileForm,
-from .models import Post,Profile, User,Rate
-from django.db.models import Avg
-import math
-import random
+from rest_framework import generics, permissions,status
+from rest_framework.response import Response
+from knox.models import AuthToken
+from .serializers import UserSerializer, RegisterSerializer, ChangePasswordSerializer
+from rest_framework.permissions import IsAuthenticated
+from django.contrib.auth import login
+from django.contrib.auth.models import User
+from rest_framework.authtoken.serializers import AuthTokenSerializer
+from knox.views import LoginView as KnoxLoginView
+from rest_framework import viewsets,permissions
 
-# Create your views here.
-
-def index(request):
-    return render(request, '', context)
-
-def home(request):
-    posts = Post.objects.all().order_by("-posted")
-    if request.method == 'POST':
-        uform = PostForm(request.POST, request.FILES)
-        if uform.is_valid():
-            post = uform.save(commit=False)
-            post.user = request.user
-            post.save()
-            return HttpResponseRedirect(request.path_info)
-    else:
-        uform = PostForm()
-    return render(request, '',{'uform': uform,'posts':posts})
-    
-
-def register(request):
-    if request.method == 'POST':
-        form = RegisterForm(request.POST)
-        if form.is_valid():
-            form.save()
-            username = form.cleaned_data.get('username')
-            password = form.cleaned_data.get('password1')
-            user = authenticate(username=username, password=password)
-            login(request, user)
-            return redirect('home')
-    else:
-        form = RegisterForm()
-    return render(request, '', {'form': form})
-
-@login_required(login_url='login')
-def profile(request, username):
-    return render(request, '')
+# Register API
 
 
-@login_required(login_url='login')
-def edit_profile(request, username):
-    user = User.objects.get(username=username)
-    if request.method == 'POST':
-        user_form = UpdateUserForm(request.POST, instance=request.user)
-        prof_form = UpdateProfileForm(request.POST, request.FILES, instance=request.user.profile)
-        if user_form.is_valid() and prof_form.is_valid():
-            user_form.save()
-            prof_form.save()
-            return redirect('profile', user.username)
-    else:
-        user_form = UpdateUserForm(instance=request.user)
-        prof_form = UpdateProfileForm(instance=request.user.profile)
-    params = {
-        'user_form': user_form,
-        'prof_form': prof_form
-    }
-    return render(request, 'edit.component.html', params)
-    
+class RegisterAPI(generics.GenericAPIView):
+    serializer_class = RegisterSerializer
+
+    def post(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        user = serializer.save()
+        return Response({
+            "user": UserSerializer(user, context=self.get_serializer_context()).data,
+            "token": AuthToken.objects.create(user)[1]
+        })
+
+
+class LoginAPI(KnoxLoginView):
+    permission_classes = (permissions.AllowAny,)
+
+    def post(self, request, format=None):
+        serializer = AuthTokenSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        user = serializer.validated_data['user']
+        login(request, user)
+        return super(LoginAPI, self).post(request, format=None)
+
+
+class ChangePasswordView(generics.UpdateAPIView):
+    """
+    An endpoint for changing password.
+    """
+    serializer_class = ChangePasswordSerializer
+    model = User
+    permission_classes = (IsAuthenticated,)
+
+    def get_object(self, queryset=None):
+        obj = self.request.user
+        return obj
+
+    def update(self, request, *args, **kwargs):
+        self.object = self.get_object()
+        serializer = self.get_serializer(data=request.data)
+
+        if serializer.is_valid():
+            # Check old password
+            if not self.object.check_password(serializer.data.get("old_password")):
+                return Response({"old_password": ["Wrong password."]}, status=status.HTTP_400_BAD_REQUEST)
+            # set_password also hashes the password that the user will get
+            self.object.set_password(serializer.data.get("new_password"))
+            self.object.save()
+            response = {
+                'status': 'success',
+                'code': status.HTTP_200_OK,
+                'message': 'Password updated successfully',
+                'data': []
+            }
+
+            return Response(response)
+
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)

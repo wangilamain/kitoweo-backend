@@ -1,60 +1,80 @@
 from django.db import models
 from django.contrib.auth.models import User
+from django.contrib.auth.models import AbstractBaseUser, BaseUserManager
 from django.dispatch import receiver
-from cloudinary.models import CloudinaryField
-from django.db.models.signals import post_save
+from django.urls import reverse
+from django_rest_passwordreset.signals import reset_password_token_created
+from django.core.mail import send_mail
 
 # Create your models here.
-class Profile(models.Model):
-    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='profile')
-    bio = models.TextField(max_length=300, default="No Bio..", blank=True)
-    name = models.CharField(max_length=60,blank=True)
-    country = models.CharField(max_length=60,blank=True)
-    prof_pic = CloudinaryField('image')
+# class Artcenter(models.Model):
+#      title = models.CharField(max_length=35)
+#      desc = models.CharField(max_length=250)
 
-    def __str__(self):
-        return f"{self.user.username}"
+#signal for sending email.
+@receiver(reset_password_token_created)
+def password_reset_token_created(sender, instance, reset_password_token, *args, **kwargs):
 
+    email_plaintext_message = "{}?token={}".format(
+        reverse('password_reset:reset-password-request'), reset_password_token.key)
 
-class Post(models.Model):
-    quantity = models.CharField(max_length=155)
-    location = models.CharField(max_length=100)
-    description = models.CharField(max_length=255)
-    image = CloudinaryField('size/age', null=True, blank=True)
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="posts")
-    posted = models.DateTimeField(auto_now_add=True)
+    send_mail(
+        # title:
+        "Password Reset for {title}".format(title="Some website title"),
+        # message:
+        email_plaintext_message,
+        # from:
+        "noreply@somehost.local",
+        # to:
+        [reset_password_token.user.email]
+    )
+class MyUserManager(BaseUserManager):
+    def create_user(self, email, username, password=None):
+        if not email:
+            raise ValueError('Users must have email address')
+        if not username:
+            raise ValueError('Users must have username')
+        user = self.model(
+                email=self.normalize_email(email),
+                username=username,
+            )
 
-    def __str__(self):
-        return str(self.projectname)
+        user.set_password(password)
+        user.save(using=self._db)
+        return user
 
-    def delete_post(self):
-        self.delete()
+    def create_superuser(self, email, username, password):
+        user = self.create_user(
+            email=self.normalize_email(email),
+            password=password,
+            username=username,
+        )
+        user.is_admin = True
+        user.is_staff = True
+        user.is_superuser = True
+        user.save(using=self._db)
+        return user
+  
+class User(AbstractBaseUser):
+    email       = models.EmailField(verbose_name="email", max_length=60, unique=True)
+    username    = models.CharField(max_length=30, unique=True)
+    date_joined = models.DateTimeField(verbose_name="date-joined", auto_now_add=True)
+    last_login   = models.DateTimeField(verbose_name="last-login", auto_now=True)
+    is_admin     = models.BooleanField(default=False)
+    is_active    = models.BooleanField(default=True)
+    is_staff     = models.BooleanField(default=False)
+    is_superuser = models.BooleanField(default=False)
 
-    def save_post(self):
-        self.save()
+    USERNAME_FIELD = 'email'
+    REQUIRED_FIELDS = ['username']
 
-    @classmethod
-    def search_post(cls,search_term):
-        
-        posts = cls.objects.filter( name__icontains=search_term)
-        return posts
+    objects = MyUserManager()
+    
+    def __str_(self):
+        return self.email
 
-    @classmethod
-    def posts(cls):
-        return cls.objects.all()
-class Catalogue(models.Model):
-        quantity= models.CharField(max_length=250)
-        location = models.CharField(max_length=250)
-        orders = models.IntegerField(default=0)
-        image = CloudinaryField('Profile pic', null=True, blank=True)
-        admin = models.ForeignKey(User, on_delete=models.CASCADE)
+    def has_perm(self, perm, obj=None):
+        return self.is_admin
 
-        def __str__(self):
-            return f'{self.name} catalogue'
-
-        def save_neighborhood(self):
-            self.save()
-
-        def delete_neighborhood(self):
-            self.delete()
-
+    def has_module_perms(self, app_label):
+        return True
